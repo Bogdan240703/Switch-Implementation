@@ -88,19 +88,19 @@ def create_vlan_tag(vlan_id):
 def send_bdpu_every_sec():
     while True:
         # TODO Send BDPU every second if necessary
-        print(own_bridge_ID)
-        print(root_bridge_ID)
+        #print(own_bridge_ID)
+        #print(root_bridge_ID)
         if own_bridge_ID==root_bridge_ID:
-            print("")
-            print("")
-            print("laaaaalalallalaa")
-            print(" ")
+            #print("")
+            #print("")
+            #print("laaaaalalallalaa")
+            #print(" ")
             
             for i in interfaces:
                 if vlans[i]==-1:
                     pachet=create_bpdu_packet(root_bridge_ID,own_bridge_ID,i)
                     send_to_link(i,52,pachet)
-                    print(" ")
+                    #print(" ")
         time.sleep(1)
 def is_mac_broadcast(mac):
     if mac=='\xFF\xFF\xFF\xFF\xFF\xFF':
@@ -140,14 +140,14 @@ def main():
     vlans=n*[0]
     for i in range(1,n+1):
         lineaux=lines[i].split(" ")
-        print(lineaux)
+        #print(lineaux)
         for j in range(0,n):
             if get_interface_name(j)==lineaux[0]:
                 if lineaux[1]=='T':
                     vlans[j]=-1
                 else:
                     vlans[j]=int(lineaux[1])
-    print(vlans)
+    #print(vlans)
     #aici o sa fac initiliaziarile pt stp
     port_states=n*[-1]
     for i in range(0,n):
@@ -193,7 +193,8 @@ def main():
         print(f'EtherType: {ethertype}')
         print(f'Interface: {interface}')
         print("Received frame of size {} on interface {}".format(length, interface), flush=True)
-
+        
+        #print(port_states)
         # TODO: Implement forwarding with learning
         if src_mac not in cam:
             cam[src_mac]=interface
@@ -205,17 +206,20 @@ def main():
             if is_mac_multicast(dest_mac)==True:
                 root_priority_pachet = struct.unpack('!H', data[22:24])[0]
                 cost_to_root=struct.unpack('!I', data[30:34])[0]
-                print("a ajuns bdlpul bai frate")
-                print(root_priority_pachet)
-                print("Cost to root:")
-                print(cost_to_root)
+                sender_bridge_id=struct.unpack('!H',data[34:36])[0]
+                #print("a ajuns bdlpul bai frate")
+                #print(root_priority_pachet)
+                #print("Cost to root:")
+                #print(cost_to_root)
+                #print("Sender brdige id:")
+                #print(sender_bridge_id)
                 if root_priority_pachet< root_bridge_ID:
                     ok=0
                     if root_bridge_ID==own_bridge_ID:
                         ok=1
                     root_bridge_ID=root_priority_pachet
                     root_path_cost+=10
-                    root_port=i
+                    root_port=interface
                     if ok==1:
                         #inseamna ca "am fost" root
                         for i in interfaces:
@@ -230,45 +234,63 @@ def main():
                                     data[36:]                            
                                 )
                     for i in interfaces:
-                        if vlans[i]==-1:
-                            send_to_link(i,52,new_bpdu_packet)       
+                        if vlans[i]==-1 and i!=interface:
+                            send_to_link(i,52,new_bpdu_packet) 
+                elif root_priority_pachet==root_bridge_ID:
+                    "HOPAA"
+                    if interface == root_port and cost_to_root+10<root_path_cost:
+                        root_path_cost=cost_to_root+10
+                    elif interface!=root_port:
+                        if cost_to_root>root_path_cost:   
+                            port_states[interface]=1   
+                elif own_bridge_ID==sender_bridge_id:
+                    port_states[interface]=0
+                if own_bridge_ID==root_bridge_ID:
+                    for i in interfaces:
+                         if vlans[i]==-1:
+                             port_states[i]=1
             else:
                 for i in interfaces:
                     if i!= interface:
                         if vlans[i] == -1:
-                            if vlans[interface]==-1:
+                            if vlans[interface]==-1 and port_states[i]==1:
                                 send_to_link(i,length,data)
                             else:
-                                #de adaugat vlan tag        
+                                #de adaugat vlan tag     
+                                #print("trimis")   
                                 tagged_frame = data[0:12] + create_vlan_tag(vlans[interface]) + data[12:]
-                                send_to_link(i,length+4,tagged_frame)
+                                if port_states[i]==1:
+                                    send_to_link(i,length+4,tagged_frame)
                         else:
-                            print("Lapu")
+                            #print("Lapu")
                             if vlans[interface]==-1:
                                 #de scos vlan si de trimis doar daca vlanu scos e egal cu vlanu intefertei pe care trimit
-                                print(vlan_id)
-                                if vlan_id == vlans[i]:
-                                    print("mere bai")
+                                #print(vlan_id)
+                                if vlan_id == vlans[i] and port_states[i]==1:
+                                    #print("mere bai")
                                     send_to_link(i,length-4,data[0:12]+data[16:])
                             else:
-                                if vlans[interface] == vlans[i]:
+                                if vlans[interface] == vlans[i] and port_states[i]==1:
                                     send_to_link(i,length,data)
         else:
             interf_de_trimis=cam[dest_mac]
+            #print("am ajuns aici")
             if vlans[interf_de_trimis]==-1:
-                if vlans[interface]==-1:
+                if vlans[interface]==-1 and port_states[interf_de_trimis]==1:
                     send_to_link(interf_de_trimis,length,data)
                 else:
+                    #print("Interf de trimis: "+str(interf_de_trimis))
                     tagged_frame = data[0:12] + create_vlan_tag(vlans[interface]) + data[12:]
-                    send_to_link(interf_de_trimis,length+4,tagged_frame)
+                    if port_states[interf_de_trimis]==1:
+                        send_to_link(interf_de_trimis,length+4,tagged_frame)
             else:
                 #aici inseamna ca trimit la host
                 if vlans[interface]!=-1:
-                    if vlans[interface] == vlans[interf_de_trimis]:
+                    if vlans[interface] == vlans[interf_de_trimis] and port_states[interf_de_trimis]==1:
                         send_to_link(interf_de_trimis,length,data)
                 else:
-                    if vlan_id == vlans[interf_de_trimis]:
-                        print("mere bai")
+                    if vlan_id == vlans[interf_de_trimis] and port_states[interf_de_trimis]==1:
+                        #print("mere bai")
                         send_to_link(interf_de_trimis,length-4,data[0:12]+data[16:])
         # TODO: Implement VLAN support
         # TODO: Implement STP support
