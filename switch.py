@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# Savu Bogdan - 332CB
 import sys
 import struct
 import wrapper
@@ -11,34 +12,27 @@ vlans = []
 interfaces = []
 priority=-1
 root_port=-1
-# Constants
-DST_MAC = b'\x01\x80\xc2\x00\x00\x00'  # BPDU multicast MAC
-DSAP = 0x42
-SSAP = 0x42
-CONTROL = 0x03
-PROTOCOL_ID = 0x0000
-PROTOCOL_VERSION = 0x00
-BPDU_TYPE = 0x00  # Configuration BPDU
-BPDU_FLAGS = 0x00
-LLC_LENGTH = 38  # LLC total length for this BPDU frame
 
-# BPDU Configuration Parameters (Example Values)
-root_bridge_priority = 32768
-root_bridge_mac = b'\x00\x1c\x0e\x87\x78\x00'
+dst_mac = b'\x01\x80\xc2\x00\x00\x00'  # multicast
+dsap = 0x42
+ssap = 0x42
+control = 0x03
+protocol_id = 0x0000
+protocol_version = 0x00
+bpdu_type = 0x00 
+bpdu_flags = 0x00
+llc_length = 38  
+
 root_path_cost = 0
-bridge_priority = 32768
-bridge_mac = b'\x00\x1c\x0e\x87\x85\x00'
-port_id = 0x8004
-message_age = 1
-max_age = 20
-hello_time = 2
-forward_delay = 15
+message_age = 0
+max_age =0
+hello_time = 0
+forward_delay = 0
 
 def create_bpdu_packet(root_bridge_id, sender_bridge_id, port_id):
-    # Pack BPDU Configuration section (31 bytes)
     bpdu_config = struct.pack(
         '!B8sI8sHHHHH',
-        BPDU_FLAGS,
+        bpdu_flags,
         struct.pack('!H6s', root_bridge_id, get_switch_mac()),
         root_path_cost,
         struct.pack('!H6s', sender_bridge_id, get_switch_mac()),
@@ -49,17 +43,15 @@ def create_bpdu_packet(root_bridge_id, sender_bridge_id, port_id):
         forward_delay
     )
 
-    # LLC Header (3 bytes)
-    llc_header = struct.pack('!BBB', DSAP, SSAP, CONTROL)
+    llc_header = struct.pack('!BBB', dsap, ssap, control)
 
-    # Total BPDU Frame (LLC_LENGTH + LLC Header + BPDU Header + BPDU Config)
     bpdu_frame = (
-        DST_MAC +                       # Destination MAC
-        get_switch_mac() +               # Source MAC (Function get_switch_mac() should return sender's MAC)
-        struct.pack('!H', LLC_LENGTH) +  # LLC Length
-        llc_header +                     # LLC Header
-        struct.pack('!HBB', PROTOCOL_ID, PROTOCOL_VERSION, BPDU_TYPE) +  # BPDU Header
-        bpdu_config                      # BPDU Configuration
+        dst_mac +                       
+        get_switch_mac() +               
+        struct.pack('!H', llc_length) +  
+        llc_header +                     
+        struct.pack('!HBB', protocol_id, protocol_version, bpdu_type) +  
+        bpdu_config                      
     )
     
     return bpdu_frame
@@ -89,19 +81,12 @@ def create_vlan_tag(vlan_id):
 def send_bdpu_every_sec():
     while True:
         # TODO Send BDPU every second if necessary
-        #print(own_bridge_ID)
-        #print(root_bridge_ID)
-        if own_bridge_ID==root_bridge_ID:
-            #print("")
-            #print("")
-            #print("laaaaalalallalaa")
-            #print(" ")
-            
+
+        if own_bridge_ID==root_bridge_ID:      
             for i in interfaces:
                 if vlans[i]==-1:
                     pachet=create_bpdu_packet(root_bridge_ID,own_bridge_ID,i)
                     send_to_link(i,52,pachet)
-                    #print(" ")
         time.sleep(1)
 def is_mac_broadcast(mac):
     if mac=='ff:ff:ff:ff:ff:ff':
