@@ -1,0 +1,43 @@
+1 2 3
+
+Tema 1 RL - Savu Bogdan 332CB
+
+Pentru inceput, mentionez ca am rezolvat toate cele 3 cerinte asa cum am scris in prima linie.
+
+1.  Tabela de comutare:
+    Pentru aceasta cerinta am creat un dictionar pentru a il folosi pe post de tabela cam a switchului.
+Pentru fiecare pachet primit, retin in acest dictionar asocierea dintre adresa mac sursa a pachetului si 
+numarul interfetei pe care a fost primit, daca aceasta asociere nu a fost deja facuta. 
+    Pentru partea de forwarding a pachetelor am creat 2 cazuri. Cazul in care trebuie facut broadcast
+pentru atunci cand pachetul are adresa mac destinatie o adresa de tip broadcast(ff:ff:ff:ff:ff:ff), sau cand
+nu am gasit o intrare in tabela cam a adresei, adica nu stiu exact intefata pe care trebuie trimisa. In aceste
+2 cazuri trimit pachetul pe toate porturile in afar de cel pe care a venit. Si am mai tratat cazul in care
+exista o intarare in tabela cam a adresei mac destinatie si atunci trimit pachetul doar pe portul pe care se
+gaseste hostul cu acea adresa.
+
+2.  VLAN:
+    Pentru aceasta cerinta am inceput prin a citi fisierul de configuratie al switchului pe care ruleaza codul.
+Din acest fisier am extras vlan-id urile asociate fiecarui port pe care le-am retinut intr-o lista si porturile
+de tip trunk pentru care am asociat ca identificator in loc de vlan_id, valoarea -1. M-am folosit de functia get_interface_name
+pentru a face echivalenta intre numele porturilor din fisierul de configuratie si numerele interfetelor folosite in cod, pentru
+a putea salva datele in lista. 
+    Dupa aceea am tratat cazurile posibile ce pot aparea in legatura cu header-ul 802.1Q inainte de trimiterea unui pachet.
+Astfel am avut grija ca atunci cand trimit catre un port trunk sa adaug header-ul 802.1Q, daca pachetul a venit de pe un port
+access, sau daca a venit tot de pe un port trunk sa il trimit direct(insemnand ca are deja header). Iar daca am trimis catre un
+port access, sa elimin header-ul daca a venit pachetul de pe un port trunk, sau sa il trimit fara a elimina nimic daca a venit tot
+de pe un port access. Totusi pentru cazul in care am trimis pachetul catre un port access am facut verificarea ca vlan_id-ul asociat
+portului pe care urmeaza sa trimit pachetul este egal cu vlan-id-ul din header-ul pachetului daca a venit de pe port trunk sau cu
+vlan_id-ul portului de pe care l-am primit, daca a fost primit direct de la host.
+
+3.  STP:
+    Pentru aceasta cerinta am completat functia send_bpdu_every_sec sa trimita atat timp cat swicthul este root cate un cadru
+bpdu pe toate porturile de tip trunk, intructa doar acestea sunt porturile care ne intereseaza in cadrul portocolului STP.
+Am creat de asemenea si o functie ce construieste un cadru bpdu pe care sa il trimit dupa modelul specificat pe ocw, campurile
+nefolosite le-am setat pe 0, iar cele folosite cum ar fi adresa mac destinatie sau STP,DSAP,etc le-am setat asa cum a fost
+specificat in enunt.
+    In plus am creat un caz special, astfel atunci cand primesc un pachet verific intai daca are adresa mac destinatie multicast
+specificata, intrucat asta inseamna ca este un cadru bpdu. In acest caz verific pachetul dupa modelul pseudocodului prezentat pe
+OCW si actualizez variabilele relevante corespunzator. De asemenea am creat o lista speciala pentru acest protocol in care sa retin
+starea porturilor. Adica daca se afla in starea BLOCKING sau LISTENING. Astfel acum inainte sa trimit un pachet verific ca portul
+sa fie deschis, iar atunci cand primesc un pachet pe un port verific sa fie deschis portul. Daca cumva nu este, inseamna ca pachetul
+trebuie aruncat pentru a evita formarea de bucle.
